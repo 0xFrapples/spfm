@@ -96,7 +96,7 @@ while True:
                 r1 = input("Choose a file/directory you would like to remove: ")
                 if r1 in directory:
                     try:
-                        r2 = input(f"Are you sure you want to delete the following file? '{currentDir}/{r1}'? [Yes/No]")
+                        r2 = input(f"Are you sure you want to delete the following file? '{currentDir}/{r1}'? [Yes/No] ")
                     except KeyboardInterrupt:
                         break
                     if r2 == "Yes" or "yes" or "y":
