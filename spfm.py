@@ -3,10 +3,21 @@ import json
 
 config = open('config.json')
 configData = json.load(config)
-showHiddenFiles = configData['showHiddenFiles']
-rootIgnore = configData['rootIgnore']
-passConfirm = configData['passConfirm'] # When true, performs some commands without confirmation
+try:
+    showHiddenFiles = configData['showHiddenFiles']
+except:
+    showHiddenFiles = False
+try:
+    rootIgnore = configData['rootIgnore']
+except:
+    rootIgnore = False
+try:
+    passConfirm = configData['passConfirm'] # When true, performs some commands without confirmation
+except:
+    passConfirm = True
+
 searchKey = ""
+alert = 0
 # Home directory output
 if os.getuid() == 0:
     currentDir = "/root"
@@ -16,7 +27,7 @@ else:
     parentDirs = ['/', '/home/']
 
 # Directory open function
-def openDirectory(searchKey):
+def openDirectory(searchKey, alert):
     global directory
     directory = os.listdir(currentDir)
     directory.sort()
@@ -52,7 +63,13 @@ def openDirectory(searchKey):
         print('DIR  | ..')
     print(sep)
 
-openDirectory(searchKey)
+    if alert == 1 and os.getuid() != 0:
+        if currentDir != '/':
+            print(f"Failed to remove '{currentDir}/{r1}': Permission denied.")
+        else:
+            print(f"Failed to remove '/{r1}': Permission denied.")
+        
+openDirectory(searchKey, alert)
 
 # File manager commands
 def comingSoon():
@@ -60,6 +77,7 @@ def comingSoon():
 
 # Directory prompt loop
 while True:
+    alert = 0
     try:
         reqInput = input()
         searchKey = ""
@@ -67,47 +85,63 @@ while True:
         os.system('clear')
         exit()
 
-    if reqInput.startswith('//'):
-        try:
-            if reqInput == '//' or reqInput == '//help':
-                print("List of commands: \n//help - Show this menu \n//mv - Move a file/directory to a directory \n//del - Delete a file or directory \n//rename - Rename a file/directory \n//open - Open a file \n//find - Find files/directories matching a given prompt (case sensitive!) \n//dotfiles = Toggle dotfiles (hidden files/directories), doesn't affect the config file"); input("Press enter to continue..")
-            elif reqInput == '//mv':
-                comingSoon()
-            elif reqInput == '//del':
-                comingSoon()
-            elif reqInput == '//rename':
-                while True:
+
+    try:
+        if reqInput == '//' or reqInput == '//help':
+            print("List of commands: \n//help - Show this menu \n//mv - Move a file/directory to a directory \n//del - Delete a file or directory \n//rename - Rename a file/directory \n//open - Open a file \n//find - Find files/directories matching a given prompt (case sensitive!) \n//dotfiles = Toggle dotfiles (hidden files/directories), doesn't affect the config file"); input("Press enter to continue..")
+        elif reqInput == '//mv':
+            comingSoon()
+        elif reqInput == '//del':
+            while True:
+                r1 = input("Choose a file/directory you would like to remove: ")
+                if r1 in directory:
                     try:
-                        r1 = input("Choose a file/directory you want to rename: ")
-                        if r1 in directory:
-                            r2 = input("Choose a new name: ")
-                            os.system(f'cd {currentDir} && cp {r1} {r2} && rm -rf {r1}')
-                            break
+                        r2 = input(f"Are you sure you want to delete the following file? '{currentDir}/{r1}'? [Yes/No]")
                     except KeyboardInterrupt:
                         break
-            elif reqInput == '//open':
-                open()
-            elif reqInput == '//find':
+                    if r2 == "Yes" or "yes" or "y":
+                        os.system(f'rm -rf {currentDir}/{r1}')
+                        if r1 in directory:
+                            alert = 1
+                        break
+                    elif r2 == "No" or "no" or "n":
+                        break
+                    else:
+                        pass
+        elif reqInput == '//rename':
+            while True:
+                try:
+                    r1 = input("Choose a file/directory you want to rename: ")
+                    if r1 in directory:
+                        r2 = input("Choose a new name: ")
+                        os.system(f'cd {currentDir} && cp {r1} {r2} && rm -rf {r1}')
+                        alert = 1
+                        break
+                except KeyboardInterrupt:
+                    break
+        elif reqInput == '//open':
+            open()
+        elif reqInput == '//find':
                 searchKey = input("Find: ")
-            elif reqInput == '//dotfiles':
-                if showHiddenFiles == True:
-                    showHiddenFiles = False
-                else:
-                    showHiddenFiles = True
+        elif reqInput == '//dotfiles':
+            if showHiddenFiles == True:
+                showHiddenFiles = False
             else:
-                pass
-        except KeyboardInterrupt:
+                showHiddenFiles = True
+        else:
             pass
-    elif os.access(f'{currentDir}/{reqInput}', os.R_OK) == False and os.getuid() != 0:
+    except KeyboardInterrupt:
         pass
+    if reqInput.startswith('/') and '//' not in reqInput:
+        currentDir = reqInput
     elif '//' in reqInput or os.path.isfile(reqInput) == False \
         and os.path.isdir(reqInput) == False and reqInput.startswith('/') \
         or reqInput == '..' and currentDir == '/' :
         pass
+    elif os.access(f'{currentDir}/{reqInput}', os.R_OK) == False and os.getuid() != 0:
+        pass
     elif reqInput == '..':
         currentDir = parentDirs[-1]
-    elif reqInput == '/' or reqInput.startswith('/'):
-        currentDir = reqInput
     elif reqInput == '.' or reqInput == '' \
         or os.path.isfile(f'{currentDir}/{reqInput}') == False and os.path.isdir(f'{currentDir}/{reqInput}') == False:
         pass
@@ -142,4 +176,4 @@ while True:
             else:
                 symb.append(currentDir[n])
         n += 1
-    openDirectory(searchKey)
+    openDirectory(searchKey, alert)
